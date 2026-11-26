@@ -50,15 +50,20 @@ label{font-size:.95rem}
 <script>
 var NS="http://www.w3.org/2000/svg",svg=document.getElementById("clk"),P=document.getElementById("panel");
 var st={pm:false,h:3,m:0,mode:"learn",live:true,q:null,lvl:"easy",stars:0,streak:0,done:false,n:0,score:0,tried:false,arc:true};
-var curA=null,AU={},tmr=null;
+var AE=new Audio(),AEsrc="",job=0,poll=null,ct=0;
+var SIL="data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=";
+function unlock(){try{AE.src=SIL;AEsrc="";var p=AE.play();if(p&&p.catch)p.catch(function(){})}catch(e){}}
+document.addEventListener("pointerdown",unlock,{once:true});
+function pickV(){try{var v=speechSynthesis.getVoices().filter(function(x){return /^en[-_]GB/i.test(x.lang)});var f=v.filter(function(x){return /female|libby|sonia|serena|kate|hazel|susan|martha|fiona|stephanie|amy|emma/i.test(x.name)});return f[0]||v[0]||null}catch(e){return null}}
+function playClip(src,start,end,fb,cb){var my=++job,done=false;clearInterval(poll);try{speechSynthesis.cancel()}catch(x){}AE.pause();
+ function fin(){if(done||my!==job)return;done=true;clearInterval(poll);AE.pause();if(cb)cb()}
+ function bad(){if(done||my!==job)return;done=true;clearInterval(poll);if(fb){speak(fb);if(cb)setTimeout(cb,1200)}else if(cb)cb()}
+ AE.onended=fin;AE.onerror=bad;
+ function go(){if(my!==job)return;AE.currentTime=start;var p=AE.play();if(p&&p.catch)p.catch(bad);poll=setInterval(function(){if(end&&AE.currentTime>=end)fin()},30)}
+ if(AEsrc===src&&AE.readyState>=1)go();else{AEsrc=src;AE.onloadedmetadata=function(){AE.onloadedmetadata=null;go()};AE.src=src;AE.load()}}
 function kk(h,m,s){return ("0"+h).slice(-2)+("0"+m).slice(-2)+"_"+s}
-function playK(k,fb){var e=SPR[k];if(!e)return false;try{speechSynthesis.cancel()}catch(x){}
- if(curA)curA.pause();clearTimeout(tmr);
- var a=AU[e[0]];if(!a){a=AU[e[0]]=new Audio("audio/"+e[0]+".mp3");a.addEventListener("error",function(){a.bad=1;if(a.fb)speak(a.fb)})}
- curA=a;a.fb=fb;if(a.bad){if(fb)speak(fb);return true}
- function go(){if(curA!==a)return;a.currentTime=e[1];var p=a.play();if(p&&p.catch)p.catch(function(){});tmr=setTimeout(function(){a.pause()},e[2]*1000)}
- if(a.readyState>=1)go();else{a.addEventListener("loadedmetadata",go,{once:true});a.load()}
- return true}
+function playK(k,fb,cb){var e=SPR[k];if(!e)return false;playClip("audio/"+e[0]+".mp3",e[1],e[1]+e[2],fb,cb);return true}
+function playX(k,fb,cb){playClip("audio/x_"+k+".mp3",0,null,fb,cb)}
 function hear(){playK(kk(st.h,st.m,st.pm?"pm":"am"),sayAll())}
 function hearT(){var q=st.q;playK(kk(q.h,q.m,"time"),phrase(q.h,q.m))}
 function winA(){var q=st.q;return playK(kk(q.h,q.m,(st.mode=="dig"||st.mode=="ampm")?(st.pm?"pm":"am"):"time"))}
@@ -68,7 +73,7 @@ var NW={5:"five",10:"ten",15:"fifteen",20:"twenty",25:"twenty-five",30:"thirty",
 function phrase(h,m){var H=((h-1)%12)+1,N=(H%12)+1;
  if(m==0)return H+" o’clock";if(m==15)return "quarter past "+H;if(m==30)return "half past "+H;if(m==45)return "quarter to "+N;
  return m<30?NW[m]+" past "+H:NW[60-m]+" to "+N}
-function speakSeq(it){try{speechSynthesis.cancel();it.forEach(function(x){var u=new SpeechSynthesisUtterance(x.t.replace("’","'"));u.lang="en-GB";u.rate=.8;u.pitch=1.1;if(x.fn)u.onstart=x.fn;speechSynthesis.speak(u)})}catch(e){}}
+function speakSeq(it){try{speechSynthesis.cancel();it.forEach(function(x){var u=new SpeechSynthesisUtterance(x.t.replace("’","'"));u.lang="en-GB";var vv=pickV();if(vv)u.voice=vv;u.rate=.8;u.pitch=1.1;if(x.fn)u.onstart=x.fn;speechSynthesis.speak(u)})}catch(e){}}
 function speak(t){speakSeq([{t:t}])}
 function el(n,a,p){var e=document.createElementNS(NS,n);for(var k in a)e.setAttribute(k,a[k]);(p||svg).appendChild(e);return e}
 function pt2(r,a){a=a*Math.PI/180;return(160+r*Math.sin(a)).toFixed(1)+" "+(160-r*Math.cos(a)).toFixed(1)}
@@ -130,14 +135,14 @@ function randTime(nz){var ms=st.lvl=="easy"?[0,15,30,45]:[0,5,10,15,20,25,30,35,
 function upd(){document.getElementById("stars").textContent=st.stars;document.getElementById("streak").textContent=st.streak;document.getElementById("alb").textContent=album.join(" ")||"none yet"}
 function lvbox(){return st.mode=="cpast"||st.mode=="cto"?"":"<div class='hint'><label><input type='checkbox' "+(st.lvl=="all"?"checked":"")+" onchange=\"st.lvl=this.checked?'all':'easy';go(st.mode)\"> Harder: all the times</label></div>"}
 function head(){return "<div class='hint'>Question "+st.n+" of 8 &nbsp;<span class='bar'><i style='width:"+(st.n-1)/8*100+"%'></i></span></div>"}
-function go(m){st.mode=m;tabs();svg.classList.toggle("glow",m=="pt");document.getElementById("dig").textContent="";
+function go(m){ct++;st.mode=m;tabs();svg.classList.toggle("glow",m=="pt");document.getElementById("dig").textContent="";
  document.getElementById("say").textContent="";document.getElementById("hint").textContent="";
  if(m=="learn"){st.live=true;st.arc=true;st.h=3;st.m=0;pos();readout();
   P.innerHTML="<div class='hint'><b>Drag the long blue hand</b> or the short red hand!<br>The coloured line shows the minutes you count 🟢 past or 🟠 to.</div><div class='row' id='pre'></div><div class='row'><button class='b big' onclick='hear()'>🔊 Hear it</button><button class='b big' onclick='st.pm=!st.pm;readout()'>☀️ AM / 🌙 PM</button></div>";
   [[0,"o’clock"],[5,"5 past"],[10,"10 past"],[15,"quarter past"],[20,"20 past"],[25,"25 past"],[30,"half past"],[35,"25 to"],[40,"20 to"],[45,"quarter to"],[50,"10 to"],[55,"5 to"]].forEach(function(x){var b=document.createElement("button");b.className="b pre";b.textContent=x[1];b.onclick=function(){st.m=x[0];pos();readout();hear()};document.getElementById("pre").appendChild(b)});
   return}
  st.n=0;st.score=0;next()}
-function next(){st.n++;if(st.n>8){finish();return}
+function next(){ct++;st.n++;if(st.n>8){finish();return}
  st.done=false;st.tried=false;var m=st.mode,S=document.getElementById("say");S.textContent="";document.getElementById("dig").textContent="";document.getElementById("hint").textContent="";
  st.q=randTime(m=="pt");
  if(m=="cpast"){st.q={h:1+Math.floor(Math.random()*12),m:rnd([5,10,15,20,25,30])}}
@@ -166,15 +171,15 @@ function next(){st.n++;if(st.n>8){finish();return}
   opts(H+"<div class='msg' id='msg'>How many minutes "+(past?"🟢 PAST ":"🟠 TO ")+hr+"?</div><div class='hint'>"+(past?"Count the 5s from 12 to the long hand ➜":"Count the 5s from the long hand to 12 ➜")+"</div><div class='row'><button class='b big' onclick='count()'>🔢 Count with me</button></div>",o2,ans,"")}}
 function opts(top,o,ans,tail){st.ans=ans;o.sort(function(){return Math.random()-.5});
  P.innerHTML=top+o.map(function(x,k){return "<div class='row'><button class='b opt' onclick='pick(this,"+k+")'>"+x+"</button></div>"}).join("")+tail;st.o=o}
-function count(){var q=st.q,past=st.mode=="cpast",a0=past?0:q.m*6,tot=past?q.m:60-q.m,it=[];setArc(a0,a0);
- for(var k=5;k<=tot;k+=5)(function(k){it.push({t:NW[k],fn:function(){setArc(a0,a0+k*6,past?"#2e9e4f":"#f07f13")}})})(k);
- it.push({t:phrase(q.h,q.m)});speakSeq(it)}
+function count(){var q=st.q,past=st.mode=="cpast",a0=past?0:q.m*6,tot=past?q.m:60-q.m,my=++ct;setArc(a0,a0);
+ function step(k){if(my!=ct)return;if(k>tot){hearT();return}setArc(a0,a0+k*6,past?"#2e9e4f":"#f07f13");playX("n"+k,NW[k],function(){step(k+5)})}
+ step(5)}
 function win(txt){st.stars++;st.streak++;if(!st.tried)st.score++;st.done=true;st.live=false;var bonus="";
  if(st.streak%5==0){st.stars+=2;bonus=" 🔥 Streak bonus +2⭐"}upd();
  var M=document.getElementById("msg");M.className="msg good";M.innerHTML=rnd(["🌟 Great job!","🎉 Yes! Well done!","👏 Perfect!","⭐ Super!"])+bonus;
  document.getElementById("say").textContent="It’s "+phrase(st.q.h,st.q.m);var ex="";
  if(st.mode=="dig"||st.mode=="ampm"){updAP();document.getElementById("dig").textContent=dstr(st.q.h,st.q.m,st.pm);document.getElementById("hint").innerHTML="<b>"+dstr(st.q.h,st.q.m,st.pm)+"</b> = "+dwords(st.q.h,st.q.m)+" = "+phrase(st.q.h,st.q.m)+" "+part(st.q.h,st.pm);ex=". "+dwords(st.q.h,st.q.m)+" "+(st.pm?"P M ":"A M ")+part(st.q.h,st.pm)}
- if(!winA())speak("Well done! It’s "+phrase(st.q.h,st.q.m)+ex);
+ playX("welldone","",function(){if(!winA())speak("It’s "+phrase(st.q.h,st.q.m)+ex)});
  var d=document.createElement("div");d.className="row";d.innerHTML="<button class='b big' onclick='next()'>"+(st.n==8?"🎁 See my prize":"Next ➜")+"</button>";P.appendChild(d)}
 function lose(t){st.tried=true;st.streak=0;upd();var M=document.getElementById("msg");M.className="msg nope";M.textContent=t}
 function chk(){if(st.done)return;if(st.h%12==st.q.h%12&&st.m==st.q.m)win();else lose("Try again! 🔊 Listen once more.")}
@@ -183,7 +188,7 @@ function ptA(a){if(st.done)return;if(a==st.ans)win();else lose("Look again: whic
 function finish(){st.live=false;st.arc=false;var s=st.score,medal=s>=7?"🥇":s>=5?"🥈":"🥉",stk=STK[album.length%STK.length],msg=s>=7?"Amazing!":s>=5?"Great work!":"Good try! Let’s practise again!";
  album.push(stk);st.stars+=s;upd();document.getElementById("say").textContent="🎉 Round complete!";document.getElementById("dig").textContent="";document.getElementById("hint").textContent="";
  P.innerHTML="<div style='font-size:3rem'>"+medal+"</div><div class='msg good'>"+msg+" "+s+" out of 8 ⭐</div><div class='hint'>You won a new sticker:</div><div style='font-size:3.5rem'>"+stk+"</div><div class='row'><button class='b big' onclick='go(st.mode)'>🔁 Play again</button><button class='b' onclick='go(\"learn\")'>📘 Learn</button></div>";
- confetti();speak(msg+" You got "+s+" out of 8.")}
+ confetti();playX("fin"+(s>=7?"a":s>=5?"b":"c"),msg,function(){playX("got"+s,"You got "+s+" out of 8.")})}
 function confetti(){var E=["🎉","⭐","🎈","✨","🌟"];for(var j=0;j<30;j++){var d=document.createElement("div");d.className="cf";d.textContent=rnd(E);d.style.left=Math.random()*95+"vw";d.style.animationDelay=Math.random()*1.5+"s";document.body.appendChild(d);setTimeout(function(x){x.remove()},4800,d)}}
 build();go("learn");upd();
 </script></body></html>
